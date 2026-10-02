@@ -199,6 +199,31 @@ class AppTests(unittest.TestCase):
                      "Body.Lights.Beam.High.IsOn"):
             self.assertIs(last[path], False, path)
 
+    def test_demo_survives_a_sensor_that_drops_readings(self):
+        """HttpGasSensor returns None on failure. The loop used int(None)."""
+        app, log = self.app()
+        real = main.SimulatedGasSensor()
+
+        class Flaky:
+            name, simulated, profile = "flaky", True, real.profile
+
+            def __init__(self):
+                self.n = 0
+
+            def read_ppm(self):
+                self.n += 1
+                return None if self.n % 4 == 0 else real.read_ppm()
+
+        app.gas = Flaky()
+        out = io.StringIO()
+        with mock.patch.object(main, "DEMO_PAUSE", 0), \
+                mock.patch.object(main, "SAMPLE_SECONDS", 0), \
+                mock.patch.object(main, "HORN_PULSE", 0), \
+                contextlib.redirect_stdout(out):
+            run(app.on_start())
+        self.assertIn(" ---", out.getvalue())
+        self.assertIn("Run complete", out.getvalue())
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)

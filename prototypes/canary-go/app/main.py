@@ -683,7 +683,10 @@ class Canary(VehicleApp):
             ok, description = self.camera.check(self.baseline)
             ppm = self.gas.read_ppm()
             say("  camera   %s", description)
-            say("  gas      %d ppm, nothing to report", int(ppm))
+            if ppm is None:
+                say("  gas      no reading")
+            else:
+                say("  gas      %d ppm, nothing to report", int(ppm))
             if not ok:
                 say("  Gas reading is normal. Nothing has vented.")
                 say()
@@ -720,12 +723,19 @@ class Canary(VehicleApp):
             changed = self.monitor.update(ppm)
             cam_ok, _ = self.camera.check(self.baseline)
 
-            mark = {SAFE: " ", ELEVATED: "!", ALARM: "!"}[self.monitor.classify(ppm)]
-            say("  %s %4d   %-9s  %-6s   %s",
-                mark, int(ppm), self.monitor.level,
+            # A live sensor returns None when it cannot be read. Show the gap
+            # in the table instead of crashing on int(None).
+            if ppm is None:
+                mark, shown = "?", " ---"
+            else:
+                mark = " " if self.monitor.classify(ppm) == SAFE else "!"
+                shown = "%4d" % int(ppm)
+            say("  %s %s   %-9s  %-6s   %s",
+                mark, shown, self.monitor.level,
                 "ok" if cam_ok else "ALERT", "no" if stationary else "yes")
 
-            await self.io.publish_cargo(ppm, self.monitor.level == ALARM)
+            if ppm is not None:
+                await self.io.publish_cargo(ppm, self.monitor.level == ALARM)
 
             if changed:
                 say()

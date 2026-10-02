@@ -20,9 +20,9 @@ All three apps run on the digital.auto SDV runtime against the vehicle model
 - [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) has class, state and sequence
   diagrams for all three prototypes. GitHub renders the Mermaid blocks inline.
 - [`docs/visualization.html`](docs/visualization.html) is an interactive page
-  with the same class diagrams and a step-through of the Canary Go leak monitor.
-  You can toggle "vehicle moving" or "sensor dropout" and watch the lights and
-  horn respond. Open it locally, or enable GitHub Pages on `/docs` and visit
+  with a signal trace of the Canary Go demo (gas, camera, hazards, high beam,
+  horn) and class diagrams for all three prototypes. You can replay the run, or
+  switch on "van is moving" or "sensor drops readings" and see the response change. Open it locally, or enable GitHub Pages on `/docs` and visit
   `https://<user>.github.io/<repo>/visualization.html`.
 
 ```mermaid
@@ -97,7 +97,10 @@ Canary Go:
   `bytes +=` copied the whole buffer on every 4 KB chunk.
 - The demo resets the camera through `script()` instead of setting its
   `upright` attribute directly.
-- New test suite: 22 tests covering the leak monitor hysteresis, both cameras,
+- The demo no longer crashes when the gas sensor returns no reading. A live
+  `HttpGasSensor` returns `None` on a network error, and the event loops called
+  `int(None)` on it. The table now shows `---` for that sample.
+- New test suite: 23 tests covering the leak monitor hysteresis, both cameras,
   the vehicle responses, and a full demo run that has to finish with every
   actuator off.
 
