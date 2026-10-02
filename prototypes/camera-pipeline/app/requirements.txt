@@ -1,0 +1,9 @@
+# The SDV runtime pip-installs this file automatically before running app/main.py.
+# Keep it SMALL: it reinstalls on every run, so every megabyte is startup time.
+requests==2.32.3
+
+# Only needed if DETECTOR["kind"] is "local". opencv-headless is ~60 MB and will
+# noticeably slow the first run. Start with "stub" or "remote" and add these
+# once you actually need on-runtime image decoding.
+# numpy==2.1.3
+# opencv-python-headless==4.10.0.84

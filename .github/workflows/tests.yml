@@ -1,0 +1,22 @@
+name: tests
+
+on: [push, pull_request]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.10", "3.12"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - run: pip install requests==2.32.3
+      - name: Canary Go
+        run: python prototypes/canary-go/tests/test_canary.py
+      - name: Device permissions
+        run: python prototypes/device-permissions/tests/test_permissions.py
+      - name: Camera pipeline
+        run: python prototypes/camera-pipeline/tests/test_loop.py

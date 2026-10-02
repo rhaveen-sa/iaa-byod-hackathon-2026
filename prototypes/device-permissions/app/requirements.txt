@@ -1,0 +1,5 @@
+# Intentionally empty. The permission demo is stdlib only, so the runtime has
+# nothing to pip-install and the app starts immediately.
+#
+# Uncomment ONLY if you add the camera as a second device:
+# requests==2.32.3

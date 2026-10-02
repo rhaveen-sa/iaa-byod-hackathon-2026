@@ -1,0 +1,370 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>BYOD Hackathon Explorer</title>
+<style>
+  :root {
+    --bg: #f7f7f5; --panel: #ffffff; --ink: #1d1d1b; --muted: #6b6b66;
+    --line: #e2e1dc; --accent: #2457c5; --safe: #2e8540; --warn: #c27c0e; --alarm: #c4314b;
+    --chip: #eef1f8;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #151614; --panel: #1e1f1d; --ink: #ecebe6; --muted: #9b9a94;
+      --line: #33342f; --accent: #7aa2ff; --safe: #5cc271; --warn: #e6a33a; --alarm: #ff6b81;
+      --chip: #262a35;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #151614; --panel: #1e1f1d; --ink: #ecebe6; --muted: #9b9a94;
+    --line: #33342f; --accent: #7aa2ff; --safe: #5cc271; --warn: #e6a33a; --alarm: #ff6b81;
+    --chip: #262a35;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink);
+         font: 15px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; }
+  main { max-width: 1080px; margin: 0 auto; padding: 32px 16px 64px; }
+  h1 { font-size: 26px; margin: 0 0 4px; letter-spacing: -0.01em; }
+  h2 { font-size: 18px; margin: 0 0 12px; }
+  p.lead { color: var(--muted); margin: 0 0 24px; max-width: 70ch; }
+  .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 10px;
+           padding: 20px; margin-bottom: 20px; }
+  .tabs { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 14px; }
+  .tabs button { border: 1px solid var(--line); background: transparent; color: var(--ink);
+                 padding: 6px 12px; border-radius: 999px; cursor: pointer; font: inherit; }
+  .tabs button[aria-selected="true"] { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .diagram { overflow-x: auto; }
+  .diagram .mermaid { min-width: 640px; }
+  .controls { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-bottom: 14px; }
+  .controls button { border: 1px solid var(--line); background: var(--chip); color: var(--ink);
+                     padding: 6px 14px; border-radius: 6px; cursor: pointer; font: inherit; }
+  .controls label { color: var(--muted); display: flex; gap: 6px; align-items: center; }
+  .grid { display: grid; grid-template-columns: 2fr 1fr; gap: 20px; }
+  @media (max-width: 760px) { .grid { grid-template-columns: 1fr; } }
+  svg.chart { width: 100%; height: auto; display: block; }
+  .chart text { fill: var(--muted); font-size: 11px; }
+  .lamps { display: grid; gap: 10px; }
+  .lamp { display: flex; justify-content: space-between; align-items: center;
+          border: 1px solid var(--line); border-radius: 8px; padding: 8px 12px; }
+  .lamp .dot { width: 14px; height: 14px; border-radius: 50%; background: var(--line); transition: background .2s; }
+  .lamp.on .dot { background: var(--warn); box-shadow: 0 0 10px var(--warn); }
+  .lamp.on.horn .dot { background: var(--alarm); box-shadow: 0 0 10px var(--alarm); }
+  .level { font-weight: 600; font-size: 20px; }
+  .level.SAFE { color: var(--safe); } .level.ELEVATED { color: var(--warn); } .level.ALARM { color: var(--alarm); }
+  .log { font: 12px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace; background: var(--chip);
+         border-radius: 8px; padding: 10px; height: 160px; overflow-y: auto; margin-top: 14px; white-space: pre-wrap; }
+  .kv { color: var(--muted); font-size: 13px; }
+  table { border-collapse: collapse; width: 100%; font-size: 14px; }
+  td, th { border-bottom: 1px solid var(--line); padding: 6px 8px; text-align: left; }
+</style>
+</head>
+<body>
+<main>
+  <h1>IAA LCV BYOD Hackathon 2026</h1>
+  <p class="lead">Three prototypes from the hackathon, each connecting outside devices to a software-defined van.
+  The simulation below steps through Canary Go's leak monitor with the thresholds and hysteresis from
+  <code>prototypes/canary-go/app/main.py</code>. Class diagrams for all three prototypes are underneath.</p>
+
+  <section class="panel">
+    <h2>Canary Go leak monitor, simulated</h2>
+    <div class="controls">
+      <button id="play">Play</button>
+      <button id="step">Step</button>
+      <button id="reset">Reset</button>
+      <label><input type="checkbox" id="moving"> Vehicle moving</label>
+      <label><input type="checkbox" id="dropout"> Sensor dropout</label>
+    </div>
+    <div class="grid">
+      <div>
+        <svg class="chart" id="chart" viewBox="0 0 640 260" role="img" aria-label="Gas ppm over time with thresholds"></svg>
+        <div class="log" id="log" aria-live="polite"></div>
+      </div>
+      <div>
+        <div class="kv">Monitor level</div>
+        <div class="level SAFE" id="level">SAFE</div>
+        <div class="kv" id="reading">reading: n/a</div>
+        <div class="lamps" style="margin-top:14px">
+          <div class="lamp" id="lamp-hazard"><span>Hazards</span><span class="dot"></span></div>
+          <div class="lamp" id="lamp-beam"><span>High beam</span><span class="dot"></span></div>
+          <div class="lamp horn" id="lamp-horn"><span>Horn</span><span class="dot"></span></div>
+        </div>
+        <table style="margin-top:16px">
+          <tr><th>Severity</th><th>Parked</th><th>Moving</th></tr>
+          <tr><td>ELEVATED</td><td>Hazards</td><td>Hazards</td></tr>
+          <tr><td>ALARM</td><td>Hazards, beam, horn</td><td>Hazards, beam</td></tr>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <section class="panel">
+    <h2>Class diagrams</h2>
+    <div class="tabs" role="tablist">
+      <button role="tab" data-tab="canary" aria-selected="true">Canary Go</button>
+      <button role="tab" data-tab="pipeline" aria-selected="false">Camera pipeline</button>
+      <button role="tab" data-tab="perms" aria-selected="false">Device permissions</button>
+    </div>
+    <div class="diagram" id="diagram"></div>
+  </section>
+</main>
+
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10.9.1/dist/mermaid.min.js"></script>
+<script>
+// ---- Canary Go logic, ported 1:1 from app/main.py --------------------------
+const PPM_ELEVATED = 400, PPM_ALARM = 1000, CONFIRM_READINGS = 3, CLEAR_FACTOR = 0.8;
+const PROFILE = [12,15,11,14,13,12,14,13, 90,260,430,610,780, 1150,1480,1720,1900,1850, 900,420,180,60,20,14,14,14,14];
+
+class LeakMonitor {
+  constructor() { this.level = "SAFE"; this.candidate = "SAFE"; this.streak = 0; }
+  static classify(ppm) { return ppm >= PPM_ALARM ? "ALARM" : ppm >= PPM_ELEVATED ? "ELEVATED" : "SAFE"; }
+  update(ppm) {
+    if (ppm === null) return null;                  // unreadable: hold
+    let proposed = LeakMonitor.classify(ppm);
+    if (proposed === "SAFE" && this.level !== "SAFE" && ppm > PPM_ELEVATED * CLEAR_FACTOR) proposed = "ELEVATED";
+    if (proposed === this.candidate) this.streak++; else { this.candidate = proposed; this.streak = 1; }
+    if (this.candidate !== this.level && this.streak >= CONFIRM_READINGS) { this.level = this.candidate; return this.level; }
+    return null;
+  }
+}
+
+let monitor, i, points, timer;
+const $ = id => document.getElementById(id);
+const css = v => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+
+function setLamps(h, b, horn) {
+  $("lamp-hazard").classList.toggle("on", h);
+  $("lamp-beam").classList.toggle("on", b);
+  $("lamp-horn").classList.toggle("on", horn);
+}
+function log(msg) { const el = $("log"); el.textContent += msg + "\n"; el.scrollTop = el.scrollHeight; }
+
+function respond(level) {
+  const moving = $("moving").checked;
+  if (level === "SAFE") { setLamps(false, false, false); log("  -> STAND DOWN. All actuators off."); }
+  else if (level === "ELEVATED") { setLamps(true, false, false); log("  -> HAZARDS ON. Gas in the load bay."); }
+  else if (moving) { setLamps(true, true, false); log("  -> ALARM, moving. Hazards + high beam. No horn."); }
+  else { setLamps(true, true, true); log("  -> ALARM, stationary. Hazards + high beam + horn.");
+         setTimeout(() => $("lamp-horn").classList.remove("on"), 1200); }
+}
+
+function draw() {
+  const W = 640, H = 260, L = 44, R = 10, T = 10, B = 26, max = 2000;
+  const x = k => L + k * (W - L - R) / (PROFILE.length - 1);
+  const y = v => T + (1 - Math.min(v, max) / max) * (H - T - B);
+  let s = "";
+  [[PPM_ALARM, "--alarm", "alarm 1000"], [PPM_ELEVATED, "--warn", "elevated 400"], [PPM_ELEVATED * CLEAR_FACTOR, "--muted", "clear 320", 13]]
+    .forEach(([v, c, t, dy = -4]) => s += `<line x1="${L}" x2="${W-R}" y1="${y(v)}" y2="${y(v)}" stroke="${css(c)}" stroke-dasharray="4 4"/>
+      <text x="${W-R}" y="${y(v)+dy}" text-anchor="end">${t}</text>`);
+  [0, 500, 1000, 1500, 2000].forEach(v => s += `<text x="${L-6}" y="${y(v)+4}" text-anchor="end">${v}</text>`);
+  s += `<text x="${L}" y="${H-6}">reading 1</text><text x="${W-R}" y="${H-6}" text-anchor="end">reading ${PROFILE.length}</text>`;
+  const pts = points.filter(p => p.v !== null);
+  if (pts.length) s += `<polyline fill="none" stroke="${css("--accent")}" stroke-width="2" points="${pts.map(p => x(p.k)+","+y(p.v)).join(" ")}"/>`;
+  points.forEach(p => {
+    if (p.v === null) s += `<text x="${x(p.k)}" y="${H-B-4}" text-anchor="middle">?</text>`;
+    else s += `<circle cx="${x(p.k)}" cy="${y(p.v)}" r="3.5" fill="${css(p.level === "ALARM" ? "--alarm" : p.level === "ELEVATED" ? "--warn" : "--safe")}"><title>${Math.round(p.v)} ppm, ${p.level}</title></circle>`;
+  });
+  $("chart").innerHTML = s;
+}
+
+function reset() {
+  clearInterval(timer); timer = null; $("play").textContent = "Play";
+  monitor = new LeakMonitor(); i = 0; points = [];
+  $("log").textContent = ""; setLamps(false, false, false);
+  $("level").textContent = "SAFE"; $("level").className = "level SAFE"; $("reading").textContent = "reading: n/a";
+  log("ARMED. Baseline 13 ppm, 4 cylinders upright.");
+  draw();
+}
+
+function step() {
+  if (i >= PROFILE.length) { pause(); log("Run complete."); return; }
+  const raw = PROFILE[i] + (Math.random() * 8 - 4);
+  const ppm = $("dropout").checked ? null : Math.max(0, raw);
+  const changed = monitor.update(ppm);
+  points.push({ k: i, v: ppm, level: monitor.level });
+  $("reading").textContent = ppm === null ? "reading: sensor unreadable, holding" : `reading: ${Math.round(ppm)} ppm`;
+  $("level").textContent = monitor.level; $("level").className = "level " + monitor.level;
+  log(`${String(i + 1).padStart(3)}  ${ppm === null ? "  ---" : String(Math.round(ppm)).padStart(5)} ppm  ${monitor.level}`);
+  if (changed) respond(changed);
+  i++; draw();
+}
+function pause() { clearInterval(timer); timer = null; $("play").textContent = "Play"; }
+$("play").onclick = () => { if (timer) pause(); else { timer = setInterval(step, 600); $("play").textContent = "Pause"; } };
+$("step").onclick = () => { pause(); step(); };
+$("reset").onclick = reset;
+reset();
+
+// ---- class diagrams -------------------------------------------------------
+const DIAGRAMS = {
+  canary: `classDiagram
+    direction LR
+    class Canary {
+      +arm(ppm)
+      +disarm()
+      +respond(severity, headline, parked)
+      +on_start()
+    }
+    class GasSensor {
+      <<abstract>>
+      +read_ppm() float|None
+    }
+    class HttpGasSensor {
+      +url
+      +field
+    }
+    class SimulatedGasSensor {
+      +profile
+    }
+    class LoadCamera {
+      <<abstract>>
+      +observe() dict|None
+      +script()
+      +check(baseline)
+    }
+    class SimulatedLoadCamera {
+      +expected
+      +upright
+    }
+    class LiveLoadCamera {
+      -model YOLO-World
+      -_worker()
+    }
+    class LeakMonitor {
+      +level
+      +classify(ppm)$
+      +update(ppm)
+    }
+    class VehicleIO {
+      +set_hazards()
+      +set_horn()
+      +set_high_beam()
+      +identify()
+      +is_stationary()
+      +publish_cargo()
+      +all_off()
+    }
+    VehicleApp <|-- Canary
+    GasSensor <|-- HttpGasSensor
+    GasSensor <|-- SimulatedGasSensor
+    LoadCamera <|-- SimulatedLoadCamera
+    LoadCamera <|-- LiveLoadCamera
+    Canary *-- VehicleIO
+    Canary *-- LeakMonitor
+    Canary o-- GasSensor
+    Canary o-- LoadCamera`,
+  pipeline: `classDiagram
+    direction LR
+    class ByodApp {
+      +on_start()
+      -_loop()
+      -_watchdog()
+      -_handle_event()
+      +on_stop()
+    }
+    class FrameFeed {
+      -queue size 1
+      +next_frame()
+      +stop()
+    }
+    class MjpegCamera {
+      +frames()
+      +grab_one()
+    }
+    class Detector {
+      <<abstract>>
+      +detect(jpeg) DetectionResult
+    }
+    class DetectionResult {
+      +detections
+      +ok
+      +reason
+    }
+    class WindowedRule {
+      <<abstract>>
+      +evaluate(result) Event|None
+      +condition()*
+    }
+    class CountMismatch {
+      +expected_count
+    }
+    class ZoneBreach {
+      +zone
+    }
+    class VehicleIO {
+      +set_signal()
+      +alert()
+      +safe_off()
+    }
+    class Health {
+      +status_code()
+    }
+    VehicleApp <|-- ByodApp
+    ByodApp *-- FrameFeed
+    FrameFeed *-- MjpegCamera
+    ByodApp *-- VehicleIO
+    ByodApp *-- Health
+    ByodApp o-- Detector
+    ByodApp o-- WindowedRule
+    Detector <|-- StubDetector
+    Detector <|-- RemoteDetector
+    Detector <|-- LocalDetector
+    Detector ..> DetectionResult
+    WindowedRule <|-- CountMismatch
+    WindowedRule <|-- ZoneBreach
+    WindowedRule ..> Event`,
+  perms: `classDiagram
+    direction LR
+    class Scope {
+      +action
+      +path
+      +covers(action, path)
+    }
+    class DeviceManifest {
+      +device_id
+      +owner
+      +requests
+      +reason
+    }
+    class Grant {
+      +state
+      +ttl
+      +approve()
+      +revoke()
+      +allows()
+    }
+    class GrantRegistry {
+      +audit
+      +onboard()
+      +approve()
+      +revoke()
+      +check()
+    }
+    class GuardedVehicle {
+      +actuate()
+      +read()
+    }
+    VehicleApp <|-- ByodPermissionsApp
+    ByodPermissionsApp *-- GrantRegistry
+    ByodPermissionsApp *-- GuardedVehicle
+    GuardedVehicle --> GrantRegistry : check()
+    GrantRegistry *-- Grant
+    Grant --> DeviceManifest
+    Grant *-- Scope
+    DeviceManifest *-- Scope`
+};
+const dark = matchMedia("(prefers-color-scheme: dark)").matches;
+let n = 0;
+async function show(tab) {
+  document.querySelectorAll(".tabs button").forEach(b => b.setAttribute("aria-selected", b.dataset.tab === tab));
+  const host = $("diagram");
+  if (!window.mermaid) { host.innerHTML = "<pre>" + DIAGRAMS[tab] + "</pre>"; return; }
+  const { svg } = await mermaid.render("d" + (n++), DIAGRAMS[tab]);
+  host.innerHTML = '<div class="mermaid">' + svg + "</div>";
+}
+if (window.mermaid) mermaid.initialize({ startOnLoad: false, theme: dark ? "dark" : "neutral" });
+document.querySelectorAll(".tabs button").forEach(b => b.onclick = () => show(b.dataset.tab));
+show("canary");
+</script>
+</body>
+</html>

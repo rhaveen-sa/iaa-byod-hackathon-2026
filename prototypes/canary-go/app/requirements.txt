@@ -1,0 +1,16 @@
+# The SDV runtime pip-installs this file before running app/main.py, on every
+# run. Empty means the app starts immediately, which is why the demo defaults
+# to simulated devices.
+
+# --- LIVE CAMERA -------------------------------------------------------------
+# Uncomment ALL FOUR together, and switch to CAMERA = LiveLoadCamera() near the
+# bottom of the camera section in main.py.
+#
+# Expect a slow first run: opencv-headless is about 60 MB and ultralytics pulls
+# torch, then the yolov8s-worldv2 weights download on first use. Two minutes is
+# normal. Do this only once the rest of the demo is rehearsed.
+#
+# requests==2.32.3
+# numpy==2.1.3
+# opencv-python-headless==4.10.0.84
+# ultralytics==8.3.40
